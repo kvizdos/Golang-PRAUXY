@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -122,34 +121,34 @@ func TestLoginWithValidButOddlyCapitalizedUsernameAndPassword(t *testing.T) {
 }
 
 // TOTP Tests
-func TestTOTPFailsWhenUsingInvalidType(t *testing.T) {
-	statusCode, body := makeReq("/mfa/add", "POST", `{
-		"type": "bad_type"
-	}`, t) // Normally available: totp, fido
+// func TestTOTPFailsWhenUsingInvalidType(t *testing.T) {
+// 	statusCode, body := makeReq("/mfa/add", "POST", `{
+// 		"type": "bad_type"
+// 	}`, t) // Normally available: totp, fido
 
-	if statusCode != 200 || strings.Compare(body, "invalid mfa type") != 0 {
-		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
-	}
-}
+// 	if statusCode != 200 || strings.Compare(body, "invalid mfa type") != 0 {
+// 		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
+// 	}
+// }
 
-func TestTOTPCreationSuccessful(t *testing.T) {
-	statusCode, body := makeReq("/mfa/add", "POST", `{
-		"type": "totp"
-	}`, t)
+// func TestTOTPCreationSuccessful(t *testing.T) {
+// 	statusCode, body := makeReq("/mfa/add", "POST", `{
+// 		"type": "totp"
+// 	}`, t)
 
-	match, _ := regexp.MatchString(`{"totp": ".+"}`, body)
+// 	match, _ := regexp.MatchString(`{"totp": ".+"}`, body)
 
-	if statusCode != 200 || match == false {
-		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
-	}
-}
+// 	if statusCode != 200 || match == false {
+// 		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
+// 	}
+// }
 
-func TestTOTPFailsWhenTryingToCreateSecondOTP(t *testing.T) {
-	statusCode, body := makeReq("/mfa/add", "POST", `{
-		"type": "totp"
-	}`, t)
+// func TestTOTPFailsWhenTryingToCreateSecondOTP(t *testing.T) {
+// 	statusCode, body := makeReq("/mfa/add", "POST", `{
+// 		"type": "totp"
+// 	}`, t)
 
-	if statusCode != 200 || strings.Compare(body, "account already has totp") != 0 {
-		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
-	}
-}
+// 	if statusCode != 200 || strings.Compare(body, "account already has totp") != 0 {
+// 		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
+// 	}
+// }
