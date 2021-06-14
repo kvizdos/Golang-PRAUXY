@@ -1,0 +1,1 @@
+rm -rf test-db && docker build -t prauxy/authentication-tests . && docker-compose -f docker-compose.test.yaml up --exit-code-from testing

@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+    backend:
+      image: prauxy/authentication
+      ports:
+        - "8080:8080"
+      links:
+        - auth_mongo
+    auth_mongo:
+      image: mongo
+      restart: always
+      logging:
+          driver: none 
+      volumes:
+        - ./test-db:/data/db
+    testing:
+      image: prauxy/authentication-tests
+      links:
+        - backend
+      depends_on:
+        - backend
+        - auth_mongo
