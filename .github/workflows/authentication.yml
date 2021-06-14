@@ -1,0 +1,25 @@
+name: Go
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.15
+
+    - name: Build Authentication Docker container
+      run: ./gh-actions-build.sh
+
+    - name: Test Authentication using Docker container
+      run: docker-compose -f authentication-tests/docker-compose.test.yaml up --exit-code-from testing
