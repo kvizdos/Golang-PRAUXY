@@ -15,8 +15,8 @@ import (
 )
 
 type TotpInfo struct {
-	secret string
-	qr     string
+	Secret string
+	Qr     string
 }
 
 type mfaInterface struct {
@@ -24,14 +24,46 @@ type mfaInterface struct {
 	Secret    string `bson:"secret"`
 }
 
-func getActiveMFA(username string) []mfaInterface {
+type Mfas struct {
+	totp     Mfa
+	hardware Mfa
+	backuphw Mfa
+}
+
+type Mfa struct {
+	enabled bool
+	secret  string
+}
+
+func getActiveMFA(username string) Mfas {
 	var result User
 
 	conn.FindOne(context.TODO(), User{
 		Username: "kenton",
 	}).Decode(&result)
 
-	return result.Multifactor
+	totp := Mfa{enabled: false}
+	hardwareKey := Mfa{enabled: false}
+	backupHardwareKey := Mfa{enabled: false}
+
+	for _, mfa := range result.Multifactor {
+		if !totp.enabled && mfa.TypeOfMFA == "totp" {
+			totp.enabled = true
+			totp.secret = mfa.Secret
+		}
+		if !hardwareKey.enabled {
+			hardwareKey.enabled = mfa.TypeOfMFA == "hardware"
+		}
+		if !backupHardwareKey.enabled {
+			backupHardwareKey.enabled = mfa.TypeOfMFA == "hardware-backup"
+		}
+	}
+
+	return Mfas{
+		totp:     totp,
+		hardware: hardwareKey,
+		backuphw: backupHardwareKey,
+	}
 }
 
 func createTOTP(username string) TotpInfo {
@@ -41,20 +73,18 @@ func createTOTP(username string) TotpInfo {
 	}
 	key, _ := totp.Generate(totpOpts)
 
-	fmt.Println(username)
-
 	var buf bytes.Buffer
 	img, _ := key.Image(200, 200)
 	png.Encode(&buf, img)
 
 	totp := TotpInfo{
-		secret: key.Secret(),
-		qr:     b64.StdEncoding.EncodeToString(buf.Bytes()),
+		Secret: key.Secret(),
+		Qr:     b64.StdEncoding.EncodeToString(buf.Bytes()),
 	}
 
 	dbTotp := mfaInterface{
 		TypeOfMFA: "totp",
-		Secret:    totp.secret,
+		Secret:    totp.Secret,
 	}
 
 	filter := bson.M{"username": username}
@@ -65,33 +95,48 @@ func createTOTP(username string) TotpInfo {
 	return totp
 }
 
-func AddMFAHTTPWrapper(w http.ResponseWriter, r *http.Request, body map[string]string) {
-	print("Username: " + body["username"])
+func disableMFA(username string, mfaType string) {
+	filter := bson.M{"username": username}
+	update := bson.M{"$pull": bson.M{"multifactor": bson.M{"type": mfaType}}}
 
+	conn.UpdateOne(context.TODO(), filter, update)
+}
+
+func verifyTotp(secret string, code string) bool {
+	return totp.Validate(code, secret)
+}
+
+func MFAHTTPWrapper(w http.ResponseWriter, r *http.Request, body map[string]string) {
+	switch method := r.Method; method {
+	case "POST":
+		AddMFAHTTPWrapper(w, r, body)
+	case "DELETE":
+		DeleteMFAHTTPWrapper(w, r, body)
+	}
+}
+
+func MFAVerificationHTTPWrapper(w http.ResponseWriter, r *http.Request, body map[string]string) {
 	ret := Response{}
 
 	activeMfas := getActiveMFA(body["username"])
 
-	totpEnabled := false
-	// hardwareKeyEnabled := false
-	// backuphwKeyEnabled := false
-
-	for _, mfa := range activeMfas {
-		if !totpEnabled {
-			totpEnabled = mfa.TypeOfMFA == "totp"
-		}
-	}
-
 	switch mfaType := body["type"]; mfaType {
 	case "totp":
-		if totpEnabled {
+		if !activeMfas.totp.enabled {
 			ret.statusCode = 406
-			ret.body = "totp already registered"
+			ret.body = "totp not enabled"
 			break
 		}
-		totp := createTOTP(body["username"])
-		ret.statusCode = 200
-		ret.body = fmt.Sprintf(`{"qr": "%s"}`, totp.qr)
+
+		verified := verifyTotp(activeMfas.totp.secret, body["code"])
+
+		if verified {
+			ret.statusCode = 200
+			ret.body = "session token here eventually"
+		} else {
+			ret.statusCode = 403
+			ret.body = "invalid totp code"
+		}
 	default:
 		ret.statusCode = 406
 		ret.body = "invalid mfa type"
@@ -99,5 +144,53 @@ func AddMFAHTTPWrapper(w http.ResponseWriter, r *http.Request, body map[string]s
 
 	w.WriteHeader(ret.statusCode)
 	fmt.Fprint(w, ret.body)
+}
 
+func AddMFAHTTPWrapper(w http.ResponseWriter, r *http.Request, body map[string]string) {
+	ret := Response{}
+
+	activeMfas := getActiveMFA(body["username"])
+
+	switch mfaType := body["type"]; mfaType {
+	case "totp":
+		if activeMfas.totp.enabled {
+			ret.statusCode = 406
+			ret.body = "totp already registered"
+			break
+		}
+		totp := createTOTP(body["username"])
+		ret.statusCode = 200
+		ret.body = fmt.Sprintf(`{"qr": "%s"}`, totp.Qr)
+	default:
+		ret.statusCode = 406
+		ret.body = "invalid mfa type"
+	}
+
+	w.WriteHeader(ret.statusCode)
+	fmt.Fprint(w, ret.body)
+}
+
+func DeleteMFAHTTPWrapper(w http.ResponseWriter, r *http.Request, body map[string]string) {
+	ret := Response{}
+
+	activeMfas := getActiveMFA(body["username"])
+
+	switch mfaType := body["type"]; mfaType {
+	case "totp":
+		if !activeMfas.totp.enabled {
+			ret.statusCode = 406
+			ret.body = "totp not enabled"
+			break
+		}
+		disableMFA(body["username"], "totp")
+
+		ret.statusCode = 200
+		ret.body = "totp disabled"
+	default:
+		ret.statusCode = 406
+		ret.body = "invalid mfa type"
+	}
+
+	w.WriteHeader(ret.statusCode)
+	fmt.Fprint(w, ret.body)
 }

@@ -11,7 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/pquerna/otp/totp"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -36,8 +38,6 @@ func ConnectDB(collectionName string) *mongo.Collection {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Println("Connected to mongodb...")
 
 	collection := client.Database("prauxy").Collection(collectionName)
 
@@ -196,6 +196,78 @@ func TestTOTPFailsWhenTryingToCreateSecondOTP(t *testing.T) {
 	}`, t)
 
 	if statusCode != 406 || strings.Compare(body, "totp already registered") != 0 {
-		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
+		t.Fatalf("Received code %s (expected 406) with body: %s", strconv.Itoa(statusCode), body)
+	}
+}
+
+func TestTOTPValidationFailsWithBadCode(t *testing.T) {
+	statusCode, body := makeReq("/user/mfa/verify", "POST", `{
+		"type": "totp",
+		"username": "kenton",
+		"code": "abc123"
+	}`, t)
+
+	if statusCode != 403 || strings.Compare(body, "invalid totp code") != 0 {
+		t.Fatalf("Received code %s (expected 403) with body: %s", strconv.Itoa(statusCode), body)
+	}
+}
+
+func TestTOTPValidates(t *testing.T) {
+	var result User
+
+	testConn.FindOne(context.TODO(), User{
+		Username: "kenton",
+	}).Decode(&result)
+
+	ti := time.Now()
+	passcode, _ := totp.GenerateCode(result.Multifactor[0].Secret, ti)
+
+	statusCode, body := makeReq("/user/mfa/verify", "POST", fmt.Sprintf(`{
+		"type": "totp",
+		"username": "kenton",
+		"code": "%s"
+	}`, passcode), t)
+
+	if statusCode != 200 || strings.Compare(body, "session token here eventually") != 0 {
+		t.Fatalf("Received code %s (expected 200) with body: %s and passcode %s", strconv.Itoa(statusCode), body, passcode)
+	}
+}
+
+func TestTOTPDeleteFailsWithInvalidType(t *testing.T) {
+	statusCode, body := makeReq("/user/mfa", "DELETE", `{
+		"type": "bad_type",
+		"username": "kenton"
+	}`, t)
+
+	if statusCode != 406 || strings.Compare(body, "invalid mfa type") != 0 {
+		t.Fatalf("Received code %s (expected 406) with body: %s", strconv.Itoa(statusCode), body)
+	}
+}
+
+func TestTOTPDeleteSucceeds(t *testing.T) {
+	statusCode, body := makeReq("/user/mfa", "DELETE", `{
+		"type": "totp",
+		"username": "kenton"
+	}`, t)
+
+	var result User
+
+	testConn.FindOne(context.TODO(), User{
+		Username: "kenton",
+	}).Decode(&result)
+
+	if statusCode != 200 || strings.Compare(body, "totp disabled") != 0 || len(result.Multifactor) != 0 {
+		t.Fatalf("Received code %s (expected 200) with body: %s and multifactor length of %d", strconv.Itoa(statusCode), body, len(result.Multifactor))
+	}
+}
+
+func TestTOTPDeleteFailsWithDisabledType(t *testing.T) {
+	statusCode, body := makeReq("/user/mfa", "DELETE", `{
+		"type": "totp",
+		"username": "kenton"
+	}`, t)
+
+	if statusCode != 406 || strings.Compare(body, "totp not enabled") != 0 {
+		t.Fatalf("Received code %s (expected 406) with body: %s", strconv.Itoa(statusCode), body)
 	}
 }
