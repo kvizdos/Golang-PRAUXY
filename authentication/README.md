@@ -1,4 +1,6 @@
 # PRAUXY Authentication
+[![Authentication Service](https://github.com/kvizdos/Golang-PRAUXY/actions/workflows/authentication.yml/badge.svg)](https://github.com/kvizdos/Golang-PRAUXY/actions/workflows/authentication.yml)
+
 PRAUXY Authentication is primarily used by core services, however OAuth support will let developers loop simple, yet secure, authorizations into their own apps. 
 
 ## Deployment

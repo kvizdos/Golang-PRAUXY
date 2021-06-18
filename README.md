@@ -8,7 +8,8 @@ PRAUXY is now containerized, which makes deployments very simple. If you use Doc
 Testing is on a service-level. Please go into each service to see instructions.
 
 ## Service
-- [x] [Core authentication](/authentication)
+- [x] [Core authentication](/authentication) 
+    - [![Authentication Service](https://github.com/kvizdos/Golang-PRAUXY/actions/workflows/authentication.yml/badge.svg)](https://github.com/kvizdos/Golang-PRAUXY/actions/workflows/authentication.yml)
     - Multifactor authentication:
         - [x] TOTP MFA
         - [ ] Hardware keys + backups (FIDO)
