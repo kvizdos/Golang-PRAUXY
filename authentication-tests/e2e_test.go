@@ -2,13 +2,49 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+type User struct {
+	Id          string         `bson:"id,omitempty"`
+	Username    string         `bson:"username,omitempty"`
+	Email       string         `bson:"email,omitempty"`
+	Password    string         `bson:"password,omitempty"`
+	Multifactor []mfaInterface `bson:"multifactor,omitempty"`
+}
+
+type mfaInterface struct {
+	TypeOfMFA string `bson:"type"` // Available: totp, fido
+	Secret    string `bson:"secret"`
+}
+
+func ConnectDB(collectionName string) *mongo.Collection {
+	clientOpts := options.Client().ApplyURI("mongodb://auth_mongo")
+	client, err := mongo.Connect(context.TODO(), clientOpts)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Connected to mongodb...")
+
+	collection := client.Database("prauxy").Collection(collectionName)
+
+	return collection
+}
+
+var testConn = ConnectDB("users")
 
 func makeReq(endpoint string, method string, json string, t *testing.T) (int, string) {
 	url := fmt.Sprintf("http://backend:8080%s", endpoint)
@@ -121,34 +157,45 @@ func TestLoginWithValidButOddlyCapitalizedUsernameAndPassword(t *testing.T) {
 }
 
 // TOTP Tests
-// func TestTOTPFailsWhenUsingInvalidType(t *testing.T) {
-// 	statusCode, body := makeReq("/mfa/add", "POST", `{
-// 		"type": "bad_type"
-// 	}`, t) // Normally available: totp, fido
+func TestTOTPFailsWhenUsingInvalidType(t *testing.T) {
+	statusCode, body := makeReq("/user/mfa", "POST", `{
+		"type": "bad_type",
+		"username": "kenton"
+	}`, t) // Normally available: totp, fido
 
-// 	if statusCode != 200 || strings.Compare(body, "invalid mfa type") != 0 {
-// 		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
-// 	}
-// }
+	if statusCode != 406 || strings.Compare(body, "invalid mfa type") != 0 {
+		t.Fatalf("Received code %s (expected 406) with body: %s", strconv.Itoa(statusCode), body)
+	}
+}
 
-// func TestTOTPCreationSuccessful(t *testing.T) {
-// 	statusCode, body := makeReq("/mfa/add", "POST", `{
-// 		"type": "totp"
-// 	}`, t)
+func TestTOTPCreationSuccessful(t *testing.T) {
+	statusCode, body := makeReq("/user/mfa", "POST", `{
+		"type": "totp",
+		"username": "kenton"
+	}`, t)
 
-// 	match, _ := regexp.MatchString(`{"totp": ".+"}`, body)
+	match, _ := regexp.MatchString(`{"qr": ".+"}`, body)
 
-// 	if statusCode != 200 || match == false {
-// 		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
-// 	}
-// }
+	var result User
 
-// func TestTOTPFailsWhenTryingToCreateSecondOTP(t *testing.T) {
-// 	statusCode, body := makeReq("/mfa/add", "POST", `{
-// 		"type": "totp"
-// 	}`, t)
+	testConn.FindOne(context.TODO(), User{
+		Username: "kenton",
+	}).Decode(&result)
 
-// 	if statusCode != 200 || strings.Compare(body, "account already has totp") != 0 {
-// 		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
-// 	}
-// }
+	fmt.Println(match)
+
+	if statusCode != 200 || match == false || (len(result.Multifactor) == 0 || result.Multifactor[0].TypeOfMFA != "totp") {
+		t.Fatalf("Received code %s (expected 200). Len of mfa: %s, mfaInfo: %v", strconv.Itoa(statusCode), strconv.Itoa(len(result.Multifactor)), result.Multifactor[0].TypeOfMFA)
+	}
+}
+
+func TestTOTPFailsWhenTryingToCreateSecondOTP(t *testing.T) {
+	statusCode, body := makeReq("/user/mfa", "POST", `{
+		"type": "totp",
+		"username": "kenton"
+	}`, t)
+
+	if statusCode != 406 || strings.Compare(body, "totp already registered") != 0 {
+		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
+	}
+}
