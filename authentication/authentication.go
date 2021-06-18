@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	// "github.com/pquerna/otp/totp"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -15,15 +14,11 @@ import (
 var conn = ConnectDB("users")
 
 type User struct {
+	Id          string         `bson:"id,omitempty"`
 	Username    string         `bson:"username,omitempty"`
 	Email       string         `bson:"email,omitempty"`
 	Password    string         `bson:"password,omitempty"`
 	Multifactor []mfaInterface `bson:"multifactor,omitempty"`
-}
-
-type mfaInterface struct {
-	typeOfMfa string // Available: totp, fido
-	secret    string
 }
 
 type CRUD interface {
@@ -92,26 +87,13 @@ func RegisterUser(user User) Response {
 	}
 
 	hashedPass, _ := hashPassword(user.Password)
-
-	// totpOpts := totp.GenerateOpts{
-	// 	Issuer:      "PRAUXY",
-	// 	AccountName: user.Username,
-	// }
-	// key, _ := totp.Generate(totpOpts)
-
 	user.Password = hashedPass
-	// user.TotpSecret = key.Secret()
 
 	crud.Create(user)
 
-	// var buf bytes.Buffer
-	// img, _ := key.Image(200, 200)
-	// png.Encode(&buf, img)
-
 	r := Response{
 		statusCode: 200,
-		body:       "session token somewhere here",
-		// body:       fmt.Sprintf(`{"totp": "%s"}`, b64.StdEncoding.EncodeToString(buf.Bytes())),
+		body:       fmt.Sprintf("user %s created", user.Username),
 	}
 
 	return r

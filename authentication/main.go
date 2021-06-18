@@ -104,8 +104,25 @@ func main() {
 		methodRoutes: loginRoutes,
 	}
 
+	mfaRoutes := make(map[string][]BodyField)
+	mfaRoutes["POST"] = []BodyField{
+		BodyField{
+			name:     "username",
+			required: true,
+		},
+		BodyField{
+			name:     "type",
+			required: true,
+		},
+	}
+	MfaHandler := RequestHandler{
+		handler:      AddMFAHTTPWrapper,
+		methodRoutes: mfaRoutes,
+	}
+
 	http.HandleFunc("/register", RegistrationHandler.handle)
 	http.HandleFunc("/login", LoginHandler.handle)
+	http.HandleFunc("/user/mfa", MfaHandler.handle)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
