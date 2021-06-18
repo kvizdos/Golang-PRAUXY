@@ -20,7 +20,9 @@ Testing is on a service-level. Please go into each service to see instructions.
     - [ ] Golang & other language support
     - [ ] Automated Web A/B Testing
 - [ ] Reverse Proxy
-    - [ ] Native SSL support
-- [ ] Easily send web notifications
+    - [ ] Native SSL support (LetsEncrypt)
+- [ ] Certificate Authority (CA) server
+    - [ ] Manage certificate access
+- [ ] Send & track web notifications
 - [ ] PRAUXY One (short URLs w/ advanced tracking)
 - [ ] Analytics & User Journey tracking

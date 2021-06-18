@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"image/png"
 	"net/http"
@@ -128,11 +129,19 @@ func MFAVerificationHTTPWrapper(w http.ResponseWriter, r *http.Request, body map
 			break
 		}
 
+		token, err := rdb.Get(ctx, fmt.Sprintf("%x", sha256.Sum256([]byte(body["sid"])))).Result()
+
+		if err != nil {
+			ret.statusCode = 403
+			ret.body = "invalid mfa sid"
+			break
+		}
+
 		verified := verifyTotp(activeMfas.totp.secret, body["code"])
 
 		if verified {
 			ret.statusCode = 200
-			ret.body = "session token here eventually"
+			ret.body = fmt.Sprintf(`{"token": "%s"}`, token)
 		} else {
 			ret.statusCode = 403
 			ret.body = "invalid totp code"

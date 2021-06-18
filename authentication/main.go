@@ -145,6 +145,10 @@ func main() {
 			name:     "code",
 			required: true,
 		},
+		BodyField{
+			name:     "sid",
+			required: true,
+		},
 	}
 
 	MfaVerificationHandler := RequestHandler{

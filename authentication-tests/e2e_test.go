@@ -48,7 +48,6 @@ var testConn = ConnectDB("users")
 
 func makeReq(endpoint string, method string, json string, t *testing.T) (int, string) {
 	url := fmt.Sprintf("http://backend:8080%s", endpoint)
-	fmt.Printf("Recieved method %s for URL %s", method, url)
 
 	var jsonStr = []byte(json)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
@@ -140,7 +139,9 @@ func TestLoginWithValidUsernameAndPassword(t *testing.T) {
 		"password": "password123"
 	}`, t)
 
-	if statusCode != 200 || strings.Compare(body, "session token somewhere here") != 0 {
+	match, _ := regexp.MatchString(`{"token": ".+"}`, body)
+
+	if statusCode != 200 || match == false {
 		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
 	}
 }
@@ -151,7 +152,9 @@ func TestLoginWithValidButOddlyCapitalizedUsernameAndPassword(t *testing.T) {
 		"password": "password123"
 	}`, t)
 
-	if statusCode != 200 || strings.Compare(body, "session token somewhere here") != 0 {
+	match, _ := regexp.MatchString(`{"token": ".+"}`, body)
+
+	if statusCode != 200 || match == false {
 		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
 	}
 }
@@ -182,8 +185,6 @@ func TestTOTPCreationSuccessful(t *testing.T) {
 		Username: "kenton",
 	}).Decode(&result)
 
-	fmt.Println(match)
-
 	if statusCode != 200 || match == false || (len(result.Multifactor) == 0 || result.Multifactor[0].TypeOfMFA != "totp") {
 		t.Fatalf("Received code %s (expected 200). Len of mfa: %s, mfaInfo: %v", strconv.Itoa(statusCode), strconv.Itoa(len(result.Multifactor)), result.Multifactor[0].TypeOfMFA)
 	}
@@ -197,39 +198,6 @@ func TestTOTPFailsWhenTryingToCreateSecondOTP(t *testing.T) {
 
 	if statusCode != 406 || strings.Compare(body, "totp already registered") != 0 {
 		t.Fatalf("Received code %s (expected 406) with body: %s", strconv.Itoa(statusCode), body)
-	}
-}
-
-func TestTOTPValidationFailsWithBadCode(t *testing.T) {
-	statusCode, body := makeReq("/user/mfa/verify", "POST", `{
-		"type": "totp",
-		"username": "kenton",
-		"code": "abc123"
-	}`, t)
-
-	if statusCode != 403 || strings.Compare(body, "invalid totp code") != 0 {
-		t.Fatalf("Received code %s (expected 403) with body: %s", strconv.Itoa(statusCode), body)
-	}
-}
-
-func TestTOTPValidates(t *testing.T) {
-	var result User
-
-	testConn.FindOne(context.TODO(), User{
-		Username: "kenton",
-	}).Decode(&result)
-
-	ti := time.Now()
-	passcode, _ := totp.GenerateCode(result.Multifactor[0].Secret, ti)
-
-	statusCode, body := makeReq("/user/mfa/verify", "POST", fmt.Sprintf(`{
-		"type": "totp",
-		"username": "kenton",
-		"code": "%s"
-	}`, passcode), t)
-
-	if statusCode != 200 || strings.Compare(body, "session token here eventually") != 0 {
-		t.Fatalf("Received code %s (expected 200) with body: %s and passcode %s", strconv.Itoa(statusCode), body, passcode)
 	}
 }
 
@@ -269,5 +237,61 @@ func TestTOTPDeleteFailsWithDisabledType(t *testing.T) {
 
 	if statusCode != 406 || strings.Compare(body, "totp not enabled") != 0 {
 		t.Fatalf("Received code %s (expected 406) with body: %s", strconv.Itoa(statusCode), body)
+	}
+}
+
+// MFA Login Tests
+func TestTOTPValidationFailsWithBadSID(t *testing.T) {
+	makeReq("/user/mfa", "POST", `{
+		"type": "totp",
+		"username": "kenton"
+	}`, t)
+
+	makeReq("/login", "POST", `{
+		"username": "kenton",
+		"password": "password123"
+	}`, t)
+
+	statusCode, body := makeReq("/user/mfa/verify", "POST", fmt.Sprintf(`{
+		"type": "totp",
+		"username": "%s",
+		"sid": "dfgijdfgi",
+		"code": "doesn't matter yet"
+	}`, "kenton"), t)
+
+	if statusCode != 403 || strings.Compare(body, "invalid mfa sid") != 0 {
+		t.Fatalf("Received code %s (expected 200) with body: %s", strconv.Itoa(statusCode), body)
+	}
+}
+
+func TestTOTPValidationFailsWithBadCodeButGoodSID(t *testing.T) {
+	var result User
+
+	testConn.FindOne(context.TODO(), User{
+		Username: "kenton",
+	}).Decode(&result)
+
+	ti := time.Now()
+	passcode, _ := totp.GenerateCode(result.Multifactor[0].Secret, ti)
+
+	_, bodyLogin := makeReq("/login", "POST", `{
+		"username": "kenton",
+		"password": "password123"
+	}`, t)
+
+	mfaSIDRgx := regexp.MustCompile(`{"mfaSID": "(.*?)"}`)
+	SID := mfaSIDRgx.FindStringSubmatch(bodyLogin)
+
+	statusCode, body := makeReq("/user/mfa/verify", "POST", fmt.Sprintf(`{
+		"type": "totp",
+		"username": "kenton",
+		"sid": "%s",
+		"code": "%s"
+	}`, SID[1], passcode), t)
+
+	match, _ := regexp.MatchString(`{"token": ".+"}`, body)
+
+	if statusCode != 200 || match == false {
+		t.Fatalf("Received code %s (expected 200) with body: %s and passcode %s", strconv.Itoa(statusCode), body, passcode)
 	}
 }
