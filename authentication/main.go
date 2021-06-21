@@ -104,8 +104,62 @@ func main() {
 		methodRoutes: loginRoutes,
 	}
 
+	mfaRoutes := make(map[string][]BodyField)
+	mfaRoutes["POST"] = []BodyField{
+		BodyField{
+			name:     "username",
+			required: true,
+		},
+		BodyField{
+			name:     "type",
+			required: true,
+		},
+	}
+	mfaRoutes["DELETE"] = []BodyField{
+		BodyField{
+			name:     "username",
+			required: true,
+		},
+		BodyField{
+			name:     "type",
+			required: true,
+		},
+	}
+
+	MfaHandler := RequestHandler{
+		handler:      MFAHTTPWrapper,
+		methodRoutes: mfaRoutes,
+	}
+
+	mfaVerificationRoutes := make(map[string][]BodyField)
+	mfaVerificationRoutes["POST"] = []BodyField{
+		BodyField{
+			name:     "username",
+			required: true,
+		},
+		BodyField{
+			name:     "type",
+			required: true,
+		},
+		BodyField{
+			name:     "code",
+			required: true,
+		},
+		BodyField{
+			name:     "sid",
+			required: true,
+		},
+	}
+
+	MfaVerificationHandler := RequestHandler{
+		handler:      MFAVerificationHTTPWrapper,
+		methodRoutes: mfaVerificationRoutes,
+	}
+
 	http.HandleFunc("/register", RegistrationHandler.handle)
 	http.HandleFunc("/login", LoginHandler.handle)
+	http.HandleFunc("/user/mfa", MfaHandler.handle)
+	http.HandleFunc("/user/mfa/verify", MfaVerificationHandler.handle)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

@@ -6,5 +6,8 @@ services:
         - "8080:8080"
       links:
         - auth_mongo
+        - redis
+    redis:
+      image: redis
     auth_mongo:
       image: mongo

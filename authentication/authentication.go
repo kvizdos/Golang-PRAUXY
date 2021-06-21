@@ -2,28 +2,37 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
 
-	// "github.com/pquerna/otp/totp"
+	"github.com/go-redis/redis/v8"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var conn = ConnectDB("users")
 
-type User struct {
-	Username    string         `bson:"username,omitempty"`
-	Email       string         `bson:"email,omitempty"`
-	Password    string         `bson:"password,omitempty"`
-	Multifactor []mfaInterface `bson:"multifactor,omitempty"`
-}
+var rdb = redis.NewClient(&redis.Options{
+	Addr:     "redis:6379",
+	Password: "", // no password set
+	DB:       0,  // use default DB
+})
 
-type mfaInterface struct {
-	typeOfMfa string // Available: totp, fido
-	secret    string
+var ctx = context.Background()
+
+type User struct {
+	Id           string         `bson:"id,omitempty"`
+	Username     string         `bson:"username,omitempty"`
+	Email        string         `bson:"email,omitempty"`
+	Password     string         `bson:"password,omitempty"`
+	Multifactor  []mfaInterface `bson:"multifactor,omitempty"`
+	SessionToken string         `bson:"session_token,omitempty"`
 }
 
 type CRUD interface {
@@ -92,26 +101,13 @@ func RegisterUser(user User) Response {
 	}
 
 	hashedPass, _ := hashPassword(user.Password)
-
-	// totpOpts := totp.GenerateOpts{
-	// 	Issuer:      "PRAUXY",
-	// 	AccountName: user.Username,
-	// }
-	// key, _ := totp.Generate(totpOpts)
-
 	user.Password = hashedPass
-	// user.TotpSecret = key.Secret()
 
 	crud.Create(user)
 
-	// var buf bytes.Buffer
-	// img, _ := key.Image(200, 200)
-	// png.Encode(&buf, img)
-
 	r := Response{
 		statusCode: 200,
-		body:       "session token somewhere here",
-		// body:       fmt.Sprintf(`{"totp": "%s"}`, b64.StdEncoding.EncodeToString(buf.Bytes())),
+		body:       fmt.Sprintf("user %s created", user.Username),
 	}
 
 	return r
@@ -127,6 +123,29 @@ func RegisterUserHTTPWrapper(w http.ResponseWriter, r *http.Request, body map[st
 
 	w.WriteHeader(status.statusCode)
 	fmt.Fprint(w, status.body)
+}
+
+// https://stackoverflow.com/questions/45267125/how-to-generate-unique-random-alphanumeric-tokens-in-golang
+func GenerateSecureToken(length int) string {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(b)
+}
+
+func updateUserSessionToken(user User) string {
+	newToken := GenerateSecureToken(128)
+
+	rawToken := []byte(newToken)
+	hashedToken := sha256.Sum256(rawToken)
+
+	filter := bson.M{"username": user.Username}
+	update := bson.M{"$set": bson.M{"session_token": fmt.Sprintf("%x", hashedToken)}}
+
+	conn.UpdateOne(context.TODO(), filter, update)
+
+	return newToken
 }
 
 func LoginUser(validateUser User) Response {
@@ -146,11 +165,18 @@ func LoginUser(validateUser User) Response {
 	}
 
 	if checkPasswordHash(validateUser.Password, foundUser.Password) {
-		r := Response{
-			statusCode: 200,
-			body:       "session token somewhere here",
-		}
+		r := Response{}
+		token := updateUserSessionToken(foundUser)
 
+		if len(foundUser.Multifactor) == 0 {
+			r.statusCode = 200
+			r.body = fmt.Sprintf(`{"token": "%s"}`, token)
+		} else {
+			mfaSID := GenerateSecureToken(32)
+			rdb.Set(ctx, fmt.Sprintf("%x", sha256.Sum256([]byte(mfaSID))), token, 0)
+			r.statusCode = 200
+			r.body = fmt.Sprintf(`{"mfaSID": "%s"}`, mfaSID)
+		}
 		return r
 	}
 
