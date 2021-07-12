@@ -114,14 +114,17 @@ export default {
                         let resp = this.responseText
 
                         if (this.status != 200) {
+                            console.log(resp)
                             _this.loginStatus = 'failed'
                             _this.loginFailed = true
                             return
                         }
 
+
                         _this.loginStatus = 'success'
 
                         resp = JSON.parse(resp)
+                        console.log("Response", resp)
 
                         if(resp["mfaSID"] != undefined) {
                             const sid = resp["mfaSID"]
@@ -133,9 +136,10 @@ export default {
                             return;
                         }
 
+                        console.log("Setting sid " + resp['token'])
+
                         document.cookie = `sid=${resp['token']}; path=/`
 
-                        alert("waiting")
                         window.location.href = "/account"
                 }
             });

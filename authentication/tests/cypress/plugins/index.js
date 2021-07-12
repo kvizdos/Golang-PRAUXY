@@ -18,7 +18,8 @@ module.exports = (on, config) => {
   on('task', {
     'db:teardown': () => {
       return new Promise((resolve) => {
-        MongoClient.connect('mongodb://localhost:27017', (err, client) => {
+        console.log("MONGO HOST: " + process.env.MONGO_HOST)
+        MongoClient.connect(`mongodb://${process.env.MONGO_HOST || "mongo"}:27017`, (err, client) => {
           const db = client.db('prauxy')
           db.collection("users").deleteMany({})
           resolve("Done")
@@ -28,8 +29,9 @@ module.exports = (on, config) => {
     },
     'db:seed': () => {
       return new Promise((resolve) => {
-        MongoClient.connect('mongodb://localhost:27017', (err, client) => {
+        MongoClient.connect(`mongodb://${process.env.MONGO_HOST || "mongo"}:27017`, (err, client) => {
           const db = client.db('prauxy')
+          console.log(db)
           db.collection("users").insertOne({"username" : "test_user", 
                                             "email" : "demo@example.com", 
                                             "password" : "$2a$14$4X80jJ2XLaKj7h7unyvRAOPOY730GfJuvww3DTfvV9qQduG6i305." // abc123

@@ -123,5 +123,6 @@ describe('Login Tests', () => {
 
         cy.location('pathname').should('eq',  '/account')
         cy.getCookie("sid").should('not.have.property', 'value', 'undefined')
+
     })
   })
