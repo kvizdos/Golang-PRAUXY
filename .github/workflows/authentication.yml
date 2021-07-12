@@ -25,7 +25,7 @@ jobs:
     #   run: docker-compose -f authentication-tests/docker-compose.test.yaml up --exit-code-from testing
 
     - name: Stand up backend and front end Authentication containers for e2e tests
-      run: docker-compose -f authentication/docker-compose.yaml -f compose-helpers/tests-compose.yaml up -d --exit-code-from cypress
+      run: docker-compose -f authentication/docker-compose.yaml up -d
     
     - name: Cypress test Authentication UI
       uses: cypress-io/github-action@v2
