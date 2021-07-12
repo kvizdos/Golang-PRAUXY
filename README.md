@@ -14,13 +14,15 @@ Testing is on a service-level. Please go into each service to see instructions.
         - [x] TOTP MFA
         - [ ] Hardware keys + backups (FIDO)
     - [ ] OAuth authentication to loop into custom apps
+- [ ] Internal PRAUXY service router
+    -  This lets PRAUXY be modular and customizable
 - [ ] Site deployment
     - [ ] Static sites (w/ automated GitHub updates)
     - [ ] NodeJS deployment
     - [ ] Golang & other language support
     - [ ] Automated Web A/B Testing
 - [ ] Reverse Proxy
-    - [ ] Native SSL support (LetsEncrypt)
+    - [ ] Native SSL support (LetsEncrypt, custom CA)
 - [ ] Certificate Authority (CA) server
     - [ ] Manage certificate access
 - [ ] Send & track web notifications

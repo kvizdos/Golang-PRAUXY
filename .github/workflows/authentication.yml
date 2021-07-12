@@ -18,8 +18,16 @@ jobs:
       with:
         go-version: 1.15
 
-    - name: Build Authentication Docker container
+    - name: Build Authentication Docker containers
       run: ./gh-actions-build.sh
 
-    - name: Test Authentication using Docker container
-      run: docker-compose -f authentication-tests/docker-compose.test.yaml up --exit-code-from testing
+    # - name: Unit test Authentication backend API using Docker container
+    #   run: docker-compose -f authentication-tests/docker-compose.test.yaml up --exit-code-from testing
+
+    - name: Stand up backend and front end Authentication containers for e2e tests
+      run: docker-compose -f authentication/docker-compose.yaml up -d
+    
+    - name: Cypress test Authentication UI
+      uses: cypress-io/github-action@v2
+      with:
+        spec: authentication/tests/cypress/integration  

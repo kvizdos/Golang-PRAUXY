@@ -1,0 +1,29 @@
+version: "3.9"
+services:
+    # web:
+    #   logging:
+    #     driver: none
+    # backend:
+    #   logging:
+    #     driver: none
+    # mongo:
+    #   logging:
+    #     driver: none
+    # redis:
+    #   logging:
+    #     driver: none
+    cypress:
+      # the Docker image to use from https://github.com/cypress-io/cypress-docker-images
+      image: "cypress/included:3.2.0"
+      depends_on:
+        - web
+      links:
+        - web
+      environment:
+        # pass base url to test pointing at the web application
+        - CYPRESS_baseUrl=http://web:8080
+        - MONGO_HOST=localhost
+      # share the current folder as volume to avoid copying
+      working_dir: /e2e
+      volumes:
+        - ./tests/:/e2e

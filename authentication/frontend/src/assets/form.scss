@@ -1,0 +1,75 @@
+form {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+form input {
+    margin: 10px;
+    margin-top: 5px;
+    padding: 10px;
+    border-radius: 5px;
+    border: 2px solid rgb(136, 163, 238);
+    outline: none;
+    font-size: 1.2em;
+    transition: .2s;
+}
+
+form input:focus {
+    transition: .2s;
+    border-radius: 8px;
+    border: 2px solid #4B77F0;
+    outline: none !important;
+}
+
+form input[type="submit"] {
+    background-color: rgb(136, 163, 238);
+    color: white;
+    cursor: pointer;
+}
+
+form input[type="submit"]:hover,
+input:not(:placeholder-shown) ~ input:nth-child(3):not(:placeholder-shown) ~ input[type="submit"] {
+    background-color: #4B77F0;
+    border: 2px solid #4B77F0;
+}
+
+form label {
+    align-self: flex-start;
+    margin-left: 10px;
+    padding-left: 10px;
+    opacity: 1;
+    color: rgb(80, 80, 80);
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition: .2s;
+    max-height: 0;
+}
+
+input:not(:placeholder-shown) + label,
+label.taken {
+    transition: .2s;
+    max-height: 100px;
+    color: rgb(167, 167, 167);
+    transform: scaleY(1.0);
+}
+
+label.taken {
+    color: rgb(240, 24, 24) !important;
+}
+
+article.input {
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+p#badlogin {
+    padding: 0;
+    margin: 0;
+    color: rgb(240, 24, 24);
+    display: none;
+}
+
+p#badlogin.showing {
+    display: inherit;
+}

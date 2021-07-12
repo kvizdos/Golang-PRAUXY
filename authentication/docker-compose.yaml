@@ -1,0 +1,19 @@
+version: "3.9"
+services:
+    # web:
+    #     image: prauxy/authentication-web
+    #     ports:
+    #         - "8080:8080"
+    backend:
+      image: prauxy/authentication
+      links:
+        - mongo
+        - redis
+      ports:
+        -  "8081:8080"
+    redis:
+      image: redis
+    mongo:
+      image: mongo
+      ports:
+        - "27017:27017"

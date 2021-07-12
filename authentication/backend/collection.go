@@ -12,7 +12,7 @@ import (
 )
 
 func ConnectDB(collectionName string) *mongo.Collection {
-	clientOpts := options.Client().ApplyURI("mongodb://auth_mongo")
+	clientOpts := options.Client().ApplyURI("mongodb://mongo")
 	client, err := mongo.Connect(context.TODO(), clientOpts)
 
 	if err != nil {

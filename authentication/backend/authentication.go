@@ -87,7 +87,7 @@ func RegisterUser(user User) Response {
 	crud := UserCRUD{}
 
 	u := User{
-		Username: user.Username,
+		Username: strings.ToLower(user.Username),
 	}
 
 	_, err := crud.Read(u)
@@ -102,6 +102,7 @@ func RegisterUser(user User) Response {
 
 	hashedPass, _ := hashPassword(user.Password)
 	user.Password = hashedPass
+	user.Username = strings.ToLower(user.Username)
 
 	crud.Create(user)
 
@@ -114,7 +115,7 @@ func RegisterUser(user User) Response {
 }
 func RegisterUserHTTPWrapper(w http.ResponseWriter, r *http.Request, body map[string]string) {
 	u := User{
-		Username: strings.ToLower(body["username"]),
+		Username: body["username"],
 		Email:    body["email"],
 		Password: body["password"],
 	}
@@ -144,7 +145,6 @@ func updateUserSessionToken(user User) string {
 	update := bson.M{"$set": bson.M{"session_token": fmt.Sprintf("%x", hashedToken)}}
 
 	conn.UpdateOne(context.TODO(), filter, update)
-
 	return newToken
 }
 
@@ -159,7 +159,7 @@ func LoginUser(validateUser User) Response {
 	if err == mongo.ErrNoDocuments {
 		r := Response{
 			statusCode: 401,
-			body:       "invalid username",
+			body:       "invalid username or password",
 		}
 		return r
 	}
@@ -182,7 +182,7 @@ func LoginUser(validateUser User) Response {
 
 	r := Response{
 		statusCode: 401,
-		body:       "invalid password",
+		body:       "invalid username or password",
 	}
 	return r
 }

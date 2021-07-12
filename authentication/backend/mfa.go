@@ -40,7 +40,7 @@ func getActiveMFA(username string) Mfas {
 	var result User
 
 	conn.FindOne(context.TODO(), User{
-		Username: "kenton",
+		Username: username,
 	}).Decode(&result)
 
 	totp := Mfa{enabled: false}

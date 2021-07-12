@@ -33,6 +33,15 @@ type RequestHandler struct {
 }
 
 func (h *RequestHandler) handle(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(200)
+		fmt.Fprint(w, "OK")
+	}
+
 	if !contains(reflect.ValueOf(h.methodRoutes).MapKeys(), r.Method) {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return

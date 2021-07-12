@@ -1,21 +1,20 @@
-# PRAUXY Authentication
-[![Authentication Service](https://github.com/kvizdos/Golang-PRAUXY/actions/workflows/authentication.yml/badge.svg)](https://github.com/kvizdos/Golang-PRAUXY/actions/workflows/authentication.yml)
-
-PRAUXY Authentication is primarily used by core services, however OAuth support will let developers loop simple, yet secure, authorizations into their own apps. 
-
-## Deployment
-1. Build Docker container: `docker build -t prauxy/authentication`
-2. Use the docker_compose file from [../docker-compose.yaml](../docker-compose.yaml), or create your own.
+# Authentication Service
+This service has two docker containers:
+- prauxy/authentication (./backend): the backend authentication & authorization service.
+- prauxy/authentication-web (./frontend): the front end that lets users interact with the backend
 
 ## Testing
-It is recommended to use a testing Docker environment to do e2e tests. You can use the `./test.sh` file in [../authentication-tests](../authentication-tests) folder to easily tear that up and down. Make sure you build this again whenever you update before rerunning tests.
+Since this service relies on two different containers, make sure you build the latest versions first:
+**Build backend API**: `docker build -t prauxy/authentication authentication/backend
+**Build frontend**: `docker build -t prauxy/authentication-web authentication/frontend
 
-## TODO
-- [x] Register
-- [x] Login
-- [ ] MFA
-    - [x] TOTP
-    - [ ] Hardware key (FIDO)
-    - [ ] Backup hardware key (FIDO)
-- [ ] Verify session tokens
-- [ ] OAuth
+Once you've built the containers, run the following Docker Compose command to test it with Cypress:
+```
+docker-compose -f authentication/docker-compose.yaml -f compose-helpers/tests-compose.yaml up --exit-code-from cypress
+```
+
+## Backend API
+This service runs on Go. 
+
+## Frontend UI
+The frontend is made in Vue3 and tested with Cypress. 

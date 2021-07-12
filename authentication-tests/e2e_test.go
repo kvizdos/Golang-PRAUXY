@@ -98,6 +98,18 @@ func TestRegistrationExistingUser(t *testing.T) {
 	}
 }
 
+func TestConfirmRegistrationHashesPassword(t *testing.T) {
+	var result User
+
+	testConn.FindOne(context.TODO(), User{
+		Username: "kenton",
+	}).Decode(&result)
+
+	if result.Password == "password123" {
+		t.Fatalf("Password is not hashed!")
+	}
+}
+
 func TestRegistrationExistingUserWithDifferentCapitalization(t *testing.T) {
 	statusCode, body := makeReq("/register", "POST", `{
 		"username": "KenTon",
@@ -117,7 +129,7 @@ func TestLoginWithInvalidUsername(t *testing.T) {
 		"password": "password123"
 	}`, t)
 
-	if statusCode != 401 || strings.Compare(body, "invalid username") != 0 {
+	if statusCode != 401 || strings.Compare(body, "invalid username or password") != 0 {
 		t.Fatalf("Received code %s (expected 401) with error: %s", strconv.Itoa(statusCode), body)
 	}
 }
@@ -128,7 +140,7 @@ func TestLoginWithValidUsernameButBadPassword(t *testing.T) {
 		"password": "bad_pass"
 	}`, t)
 
-	if statusCode != 401 || strings.Compare(body, "invalid password") != 0 {
+	if statusCode != 401 || strings.Compare(body, "invalid username or password") != 0 {
 		t.Fatalf("Received code %s (expected 401) with error: %s", strconv.Itoa(statusCode), body)
 	}
 }
@@ -146,7 +158,7 @@ func TestLoginWithValidUsernameAndPassword(t *testing.T) {
 	}
 }
 
-func TestLoginWithValidButOddlyCapitalizedUsernameAndPassword(t *testing.T) {
+func TestLoginWithValidPasswordButOddlyCapitalizedUsername(t *testing.T) {
 	statusCode, body := makeReq("/login", "POST", `{
 		"username": "KenToN",
 		"password": "password123"
