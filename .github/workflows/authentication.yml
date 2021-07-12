@@ -28,6 +28,6 @@ jobs:
       run: docker-compose -f authentication/docker-compose.yaml -f authentication/tests-compose.yaml -d
     
     - name: Cypress run
-        uses: cypress-io/github-action@v2
-        with:
-          spec: authentication/tests/cypress/integration  
+      uses: cypress-io/github-action@v2
+      with:
+        spec: authentication/tests/cypress/integration  
