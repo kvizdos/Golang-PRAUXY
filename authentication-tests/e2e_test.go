@@ -129,7 +129,7 @@ func TestLoginWithInvalidUsername(t *testing.T) {
 		"password": "password123"
 	}`, t)
 
-	if statusCode != 401 || strings.Compare(body, "invalid username or username") != 0 {
+	if statusCode != 401 || strings.Compare(body, "invalid username or password") != 0 {
 		t.Fatalf("Received code %s (expected 401) with error: %s", strconv.Itoa(statusCode), body)
 	}
 }
