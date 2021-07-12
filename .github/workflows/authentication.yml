@@ -21,5 +21,13 @@ jobs:
     - name: Build Authentication Docker container
       run: ./gh-actions-build.sh
 
-    - name: Test Authentication using Docker container
+    - name: Unit test Authentication using Docker container
       run: docker-compose -f authentication-tests/docker-compose.test.yaml up --exit-code-from testing
+
+    - name: Stand up backend and front end Authentication containers for e2e tests
+      run: docker-compose -f authentication/docker-compose.yaml -f authentication/tests-compose.yaml -d
+    
+    - name: Cypress run
+        uses: cypress-io/github-action@v2
+        with:
+          spec: authentication/tests/cypress/integration  

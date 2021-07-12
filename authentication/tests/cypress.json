@@ -1,0 +1,6 @@
+{
+    "baseUrl": "http://localhost:8080",
+    "env": {
+        "seed_user_totp_secret": "MZZDVPZZTWG4WZYOBUTJXMIOMP37AKZ2"
+    }
+}
